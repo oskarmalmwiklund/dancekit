@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DanceKit — Crowd-Reactive Auto DJ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800;900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/src/style.css">
+</head>
+
+<body>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="topbar">
+        <div class="brand">DANCE<em>KIT</em></div>
+        <div class="pills">
+            <span id="pill-live" class="pill"><i class="dot"></i><span>STANDBY</span></span>
+            <span id="pill-mode" class="pill" hidden>SIM</span>
+            <span id="pill-meta" class="pill" hidden>BPM —</span>
+        </div>
+        <div class="user" id="user-chip" hidden></div>
+    </header>
+
+    <!-- ============ SETUP ============ -->
+    <main id="screen-setup" class="setup">
+        <section class="setup-card" id="step-connect">
+            <h1>Plug in.</h1>
+            <p class="lede">DanceKit watches the room and DJs your Spotify to keep people dancing.
+                Connect your own Spotify app to get started.</p>
+            <ol class="hints">
+                <li>Create an app at <span class="mono">developer.spotify.com/dashboard</span></li>
+                <li>Add this Redirect URI to the app: <code id="redirect-uri">…</code></li>
+                <li>Enable the <strong>Web API</strong> and <strong>Web Playback SDK</strong>, paste the Client ID below</li>
+            </ol>
+            <div class="field-row">
+                <input id="client-id" class="input" type="text" placeholder="Spotify Client ID" autocomplete="off"
+                    spellcheck="false">
+                <button id="btn-connect" class="btn btn-primary">Connect</button>
+            </div>
+            <p class="fineprint">Spotify Premium required for playback. Your Client ID stays in this browser.</p>
+            <p id="connect-error" class="error" hidden></p>
+        </section>
+
+        <section class="setup-card" id="step-playlists" hidden>
+            <h1>Pick the pool.</h1>
+            <p class="lede">Choose the playlists that fit tonight's theme. The DJ brain only ever plays from these —
+                more tracks and a spread of energies give it more room to work. Only playlists you own or
+                collaborate on are shown; Spotify blocks apps from reading the rest.</p>
+            <div id="playlist-list" class="playlist-list">
+                <p class="dim">Loading your playlists…</p>
+            </div>
+            <div class="field-row">
+                <button id="btn-analyze" class="btn btn-primary" disabled>Analyze &amp; start</button>
+                <span id="analyze-progress" class="dim"></span>
+            </div>
+            <p id="playlist-error" class="error" hidden></p>
+        </section>
+    </main>
+
+    <!-- ============ DASHBOARD ============ -->
+    <main id="screen-dash" class="dash" hidden>
+        <section class="stage">
+            <div class="viewport">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="output"></canvas>
+                <div class="vp-frame" aria-hidden="true"></div>
+                <div id="coach" class="coach" aria-live="polite"></div>
+                <div class="vp-status" id="vision-status">loading model…</div>
+            </div>
+            <div class="meter-rack">
+                <div class="meter-label">CROWD<br>ENERGY</div>
+                <div class="meter" id="energy-meter" role="meter" aria-label="crowd energy"></div>
+                <div class="meter-read">
+                    <div class="big" id="group-level">—</div>
+                    <div class="sub"><span id="people-count">0</span> tracked · ×<span id="ratio">0.0</span> ·
+                        <span id="sustain">0s</span></div>
+                </div>
+            </div>
+        </section>
+
+        <aside class="booth">
+            <div class="card now-playing" id="np">
+                <div class="card-title">NOW PLAYING</div>
+                <div class="np-body">
+                    <img id="np-art" alt="" hidden>
+                    <div class="np-meta">
+                        <div id="np-name" class="np-name">—</div>
+                        <div id="np-artist" class="np-artist"></div>
+                        <div class="chips">
+                            <span class="chip" id="np-bpm" hidden></span>
+                            <span class="chip" id="np-band" hidden></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="progress"><div id="np-progress" class="progress-fill"></div></div>
+            </div>
+
+            <div class="card up-next">
+                <div class="card-title">UP NEXT</div>
+                <div id="next-track" class="next-track dim">nothing queued</div>
+            </div>
+
+            <div class="card log-card">
+                <div class="card-title">DECISION LOG</div>
+                <div id="log" class="log"></div>
+            </div>
+        </aside>
+
+        <footer class="console">
+            <button id="btn-skip" class="btn">SKIP NOW</button>
+            <label class="ctrl">BAND LOCK
+                <select id="band-lock" class="input slim">
+                    <option value="">auto</option>
+                </select>
+            </label>
+            <label class="ctrl toggle">
+                <input type="checkbox" id="sim-toggle"> SIM
+            </label>
+            <input type="range" id="sim-slider" min="0" max="10" step="0.1" value="4" disabled>
+            <span class="spacer"></span>
+            <button id="btn-tuning" class="btn">TUNING</button>
+            <div id="tuning" class="tuning" hidden>
+                <label>switch after (s)<input type="number" id="tune-sustainSwitchMs" class="input slim" step="1"></label>
+                <label>keep after (s)<input type="number" id="tune-sustainKeepMs" class="input slim" step="1"></label>
+                <label>min play (s)<input type="number" id="tune-minPlayMs" class="input slim" step="5"></label>
+                <label>cooldown (s)<input type="number" id="tune-decisionCooldownMs" class="input slim" step="1"></label>
+                <label>queue at end −(s)<input type="number" id="tune-nearEndMs" class="input slim" step="1"></label>
+                <label>fade (s)<input type="number" id="tune-fadeMs" class="input slim" step="0.5"></label>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        // Modules and OAuth don't work over file:// — the app must be served by Vite.
+        if (location.protocol === 'file:') {
+            document.body.innerHTML =
+                '<div style="font-family:monospace;padding:60px;line-height:2;font-size:15px">' +
+                '<strong>DanceKit can\'t run from a file:// URL.</strong><br>' +
+                'In the DanceKit folder run: <code style="background:#eee;padding:2px 8px">npm run dev</code><br>' +
+                'then open <a href="http://127.0.0.1:5173">http://127.0.0.1:5173</a></div>';
+        }
+    </script>
+    <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
