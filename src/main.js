@@ -11,6 +11,13 @@ import { Dashboard } from './ui/dashboard.js';
 import { Simulator } from './ui/sim.js';
 
 async function boot() {
+  // ?demo renders the dashboard with sample data — no auth, no Spotify.
+  // Used for screenshots and UI development.
+  if (new URLSearchParams(location.search).has('demo')) {
+    demoMode();
+    return;
+  }
+
   // OAuth callback leg
   if (location.pathname === '/callback') {
     try {
@@ -145,6 +152,67 @@ async function startSession(playlists, reportProgress) {
   });
 
   await brain.startSession();
+}
+
+function demoMode() {
+  hideSetup();
+  const dashboard = new Dashboard({
+    nBands: config.bands,
+    onSkip: () => dashboard.addLog('info', 'manual skip (demo)'),
+    onBandLock: () => {},
+    onSimToggle: () => {},
+    onSimRatio: () => {},
+  });
+
+  const art =
+    'data:image/svg+xml,' +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c8ff3e"/><stop offset="1" stop-color="#4dd9ff"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/></svg>'
+    );
+  dashboard.updatePlayer(
+    {
+      paused: false,
+      duration: 214000,
+      position: 83000,
+      track_window: {
+        current_track: {
+          id: 'demo',
+          name: 'One More Time',
+          artists: [{ name: 'Daft Punk' }],
+          album: { images: [{ url: art }] },
+        },
+      },
+    },
+    { bpm: 123, band: 2 }
+  );
+  dashboard.setNext({ name: 'Around the World', artists: 'Daft Punk', bpm: 121 });
+  dashboard.addLog('info', 'pool ready: 213 tracks, energy known for 178 (84%) via Deezer');
+  dashboard.addLog('switch', 'crowd low for 46s — fading into band 2→3: One More Time (123 BPM)');
+  dashboard.addLog('info', 'queued for natural transition: Around the World (band 3, 121 BPM)');
+  dashboard.addLog('keep', 'crowd high for 12s — keep going, holding band 3');
+
+  const start = performance.now();
+  setInterval(() => {
+    const t = performance.now();
+    dashboard.updateSignal({
+      level: 'high',
+      avgRatio: 4.9 + 0.6 * Math.sin(t / 900),
+      people: 4,
+      isActive: true,
+      sustainedMs: t - start,
+      ts: t,
+    });
+    dashboard.coach('KEEP GOING', 'keep');
+  }, 400);
+
+  const vision = new VisionEngine({
+    video: document.getElementById('webcam'),
+    canvas: document.getElementById('output'),
+    config,
+    onSignal: () => {},
+    onStatus: (text) => dashboard.setVisionStatus(text),
+  });
+  vision.start().catch((e) => dashboard.setVisionStatus(`camera unavailable: ${e.message}`));
 }
 
 boot().catch((e) => {

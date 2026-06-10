@@ -7,6 +7,10 @@ floor goes quiet it switches up the tempo and energy; when people are dancing it
 Everything runs in your browser. No backend, no accounts — you bring your own Spotify app
 credentials and a Premium account.
 
+![DanceKit dashboard](docs/dashboard.png)
+
+![DanceKit setup](docs/setup.png)
+
 ## Requirements
 
 - **Spotify Premium** (the Web Playback SDK refuses free accounts)
@@ -44,6 +48,8 @@ credentials and a Premium account.
   cooldown, no repeats, limited BPM jumps. Every decision is explained in the dashboard log.
 - **Simulation mode**: flip **SIM** in the console strip and drive the crowd-energy slider by
   hand to test the DJ brain without a party (or a camera).
+- **Demo mode**: open `http://127.0.0.1:5173/?demo` to see the dashboard with sample data —
+  no Spotify login needed. Handy for UI work and screenshots.
 
 ## Tuning
 
