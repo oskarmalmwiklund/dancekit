@@ -68,6 +68,12 @@ export class Dashboard {
         if (v > 0) updateConfig({ [key]: v * 1000 });
       };
     }
+    const sens = $('tune-sensitivity');
+    sens.value = config.sensitivity;
+    sens.onchange = () => {
+      const v = Number(sens.value);
+      if (v > 0) updateConfig({ sensitivity: v });
+    };
 
     // progress ticker interpolates between SDK state events
     setInterval(() => this.#tickProgress(), 1000);

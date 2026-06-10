@@ -4,9 +4,10 @@
 // signal.sustainedMs, so windows are configurable.
 
 export function classifyRatio(r, config) {
-  if (r < config.ratioLow) return 'still';
-  if (r < config.ratioMedium) return 'low';
-  if (r < config.ratioHigh) return 'medium';
+  const scaled = r * (config.sensitivity || 1);
+  if (scaled < config.ratioLow) return 'still';
+  if (scaled < config.ratioMedium) return 'low';
+  if (scaled < config.ratioHigh) return 'medium';
   return 'high';
 }
 

@@ -22,6 +22,9 @@ export const defaults = {
   ratioLow: 1.3,
   ratioMedium: 2.2,
   ratioHigh: 4.5,
+  // Crowd-energy sensitivity multiplier: >1 means gentler movement counts as
+  // dancing, <1 demands more. Scales all three ratio thresholds together.
+  sensitivity: 1.0,
   // Half-life of the peak-hold envelope on the group ratio: how long a burst
   // of dancing keeps counting after people pause.
   energyHalfLifeMs: 3500,
