@@ -98,6 +98,7 @@ async function startSession(playlists, reportProgress) {
     player,
     config,
     onError: (msg) => dashboard?.addLog('info', msg),
+    onTransition: (info, ms) => dashboard?.beginCrossfade(info, ms),
   });
   const brain = new DJBrain({
     pool,
@@ -190,6 +191,17 @@ function demoMode() {
   dashboard.addLog('switch', 'crowd low for 46s — fading into band 2→3: One More Time (123 BPM)');
   dashboard.addLog('info', 'queued for natural transition: Around the World (band 3, 121 BPM)');
   dashboard.addLog('keep', 'crowd high for 12s — keep going, holding band 3');
+
+  // Alternate the decks so the crossfader animation is visible in demo.
+  const demoTracks = [
+    { id: 'demo-a', name: 'One More Time', art },
+    { id: 'demo-b', name: 'Around the World', art },
+  ];
+  let deckFlip = 0;
+  setInterval(() => {
+    deckFlip = 1 - deckFlip;
+    dashboard.beginCrossfade(demoTracks[deckFlip], 4000);
+  }, 7000);
 
   const start = performance.now();
   setInterval(() => {

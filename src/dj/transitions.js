@@ -11,7 +11,7 @@ async function ramp(player, from, to, ms) {
 // Executor between the brain's decisions and the Spotify player.
 // Spotify streams can't overlap (one DRM'd stream per account), so "mixing"
 // a forced switch means fade out → swap track → fade in via player volume.
-export function createActions({ deviceId, player, config, onError }) {
+export function createActions({ deviceId, player, config, onError, onTransition }) {
   let lastQueuedUri = null;
   let baseVolume = 0.8;
 
@@ -20,6 +20,10 @@ export function createActions({ deviceId, player, config, onError }) {
       const doFade = fade && player;
       try {
         if (doFade) {
+          onTransition?.(
+            { id: track.id, name: track.name, art: track.image },
+            config.fadeMs * 1.7 // fade-out + fade-in
+          );
           const v = await player.getVolume();
           if (v > 0.05) baseVolume = v; // don't capture mid-fade silence as the target
           await ramp(player, baseVolume, 0, config.fadeMs);

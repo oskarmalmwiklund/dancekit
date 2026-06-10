@@ -14,6 +14,15 @@ export class Dashboard {
     this.lastPlayerStateAt = 0;
     this.coachTimer = null;
 
+    // decks + crossfader
+    this.deckEls = [document.getElementById('deck-a'), document.getElementById('deck-b')];
+    this.knobEl = document.getElementById('xfader-knob');
+    this.activeDeck = 0;
+    this.deckLoaded = false;
+    this.lastTrackId = null;
+    this.expectedTrackId = null;
+    this.xfadeTimer = null;
+
     // energy meter segments
     const meter = $('energy-meter');
     this.segments = [];
@@ -87,11 +96,70 @@ export class Dashboard {
     $('sustain').textContent = `${Math.floor(signal.sustainedMs / 1000)}s`;
   }
 
+  #loadDeck(i, info) {
+    const el = this.deckEls[i];
+    const img = el.querySelector('img');
+    img.hidden = !info.art;
+    if (info.art) img.src = info.art;
+    el.querySelector('.deck-label').textContent = info.name || '—';
+  }
+
+  #moveKnob(deck, ms) {
+    this.knobEl.style.transition = `left ${ms}ms cubic-bezier(0.45, 0, 0.55, 1)`;
+    this.knobEl.style.left = deck === 0 ? '8%' : '92%';
+  }
+
+  // Slide the incoming track onto the idle deck and ride the fader across.
+  // Called with the real fade duration for forced switches; track changes the
+  // dashboard didn't see coming get a quick flick via updatePlayer.
+  beginCrossfade(info, ms) {
+    if (info.id && info.id === this.lastTrackId) return;
+    this.expectedTrackId = info.id ?? null;
+
+    // First track of the night: drop it on deck A, no ceremony.
+    if (!this.deckLoaded) {
+      this.deckLoaded = true;
+      this.#loadDeck(0, info);
+      this.deckEls[0].classList.add('active', 'spinning');
+      this.#moveKnob(0, 300);
+      return;
+    }
+
+    const from = this.activeDeck;
+    const to = 1 - from;
+    this.activeDeck = to;
+    this.#loadDeck(to, info);
+    this.deckEls[to].classList.add('active', 'spinning');
+    this.deckEls[from].classList.remove('active');
+    this.#moveKnob(to, ms);
+    clearTimeout(this.xfadeTimer);
+    this.xfadeTimer = setTimeout(() => {
+      this.deckEls[from].classList.remove('spinning');
+    }, ms);
+  }
+
   updatePlayer(state, poolTrack) {
     this.lastPlayerState = state;
     this.lastPlayerStateAt = Date.now();
     const t = state.track_window?.current_track;
     if (!t) return;
+
+    if (t.id !== this.lastTrackId) {
+      // Crossfade visual for transitions nobody announced (queued/natural,
+      // or someone changed the track from another device).
+      if (t.id !== this.expectedTrackId) {
+        this.beginCrossfade(
+          {
+            id: t.id,
+            name: t.name,
+            art: t.album?.images?.[t.album.images.length - 1]?.url || t.album?.images?.[0]?.url,
+          },
+          1100
+        );
+      }
+      this.lastTrackId = t.id;
+      this.expectedTrackId = null;
+    }
 
     $('np-name').textContent = t.name;
     $('np-artist').textContent = t.artists.map((a) => a.name).join(', ');
@@ -121,6 +189,8 @@ export class Dashboard {
     } else {
       el.classList.remove('dim');
       el.textContent = `${track.name} — ${track.artists}${track.bpm ? ` · ${Math.round(track.bpm)} BPM` : ''}`;
+      // Cue the upcoming record on the idle deck.
+      if (this.deckLoaded) this.#loadDeck(1 - this.activeDeck, { name: track.name, art: track.image });
     }
   }
 
